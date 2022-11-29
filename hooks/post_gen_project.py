@@ -5,5 +5,5 @@ local_development = bool("{{ cookiecutter.local_development }}")
 
 
 if not local_development:
-    print('hello')
-    shutil.rmtree('docs/makefile')
+    os.remove('makefile')
+    os.removedirs('docs/makefile')
