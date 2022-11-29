@@ -1,0 +1,50 @@
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: diabetes_prediction_pipeline
+experiment_name: diabetes_prediction
+outputs:
+  train_data_folder:
+  test_data_folder:
+  trained_model_folder:
+  evaluation_output_folder:
+jobs:
+  prepare_job:
+    code: ../src/model
+    command: >-
+      python prepare.py --raw_data ${{inputs.raw_data}} --train_data_folder ${{outputs.train_data_folder}} --test_data_folder ${{outputs.test_data_folder}}
+
+    inputs:
+      raw_data:
+        type: uri_folder
+        path: azureml:diabetes-dev-folder:1
+    outputs:
+      train_data_folder: ${{parent.outputs.train_data_folder}}
+      test_data_folder: ${{parent.outputs.test_data_folder}}
+    environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
+    compute: ml-ops-cpu-compute-cluster
+  training_job:
+    code: ../src/model
+    command: >-
+      python train.py --training_data ${{inputs.training_data}} --reg_rate ${{inputs.reg_rate}} --model_folder ${{outputs.trained_model_folder}}
+
+    inputs:
+      training_data: ${{parent.jobs.prepare_job.outputs.train_data_folder}}
+      reg_rate: 0.01
+    outputs:
+      trained_model_folder: ${{parent.outputs.trained_model_folder}}
+    environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
+    compute: ml-ops-cpu-compute-cluster
+    description: diabetes_prediction
+  evaluate_job:
+    code: ../src/model
+    command: >-
+      python evaluate.py --model ${{inputs.model}} --test_data_folder ${{inputs.test_data_folder}} --evaluation_output_folder ${{outputs.evaluation_output_folder}}
+
+    inputs:
+      model: ${{parent.jobs.training_job.outputs.trained_model_folder}}
+      test_data_folder: ${{parent.jobs.prepare_job.outputs.test_data_folder}}
+    outputs:
+      evaluation_output_folder: ${{parent.outputs.evaluation_output_folder}}
+    environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
+    compute: ml-ops-cpu-compute-cluster
+    description: diabetes_evaluation

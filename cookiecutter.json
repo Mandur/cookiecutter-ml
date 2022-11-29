@@ -1,0 +1,7 @@
+{
+    "project_name": "proj",
+    "local_development": true,
+    "_copy_without_render": [
+        "azureml/*"
+    ]
+}

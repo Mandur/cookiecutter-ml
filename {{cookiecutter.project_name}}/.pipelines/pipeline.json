@@ -1,0 +1,17 @@
+{
+    "application": {
+      "name": "mslearn-endtoend",
+      "type": "python"
+    },
+    "build": {
+      "path": "",
+      "outputPath": ""
+    },
+    "test": {
+      "enabled": true
+    },
+    "archive": {
+      "registry": "artifactomikou.westeurope.cloudapp.azure.com/docker",
+      "repository": "mlops-demo"
+    }
+  }

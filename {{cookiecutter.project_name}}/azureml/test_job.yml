@@ -1,0 +1,14 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+command: |
+  tar xvfm ${{inputs.archive}} --no-same-owner -C ${{outputs.images}}
+inputs:
+  archive:
+    type: uri_file
+    path: "https://indian-roads.s3.amazonaws.com/dataset/idd-segmentation.tar.gz?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVOI4QW62FS4AAVBP%2F20221128%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20221128T100652Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=416d6c1286e3d05d7509411941e463cb40dc8f0f0a1da288de96ec3b79c7bc4e"
+outputs:
+  images:
+    type: uri_folder
+    mode: upload
+    path: azureml://datastores/workspaceblobstore/paths/IDD_20k_part1
+environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
+compute: cpu-cluster

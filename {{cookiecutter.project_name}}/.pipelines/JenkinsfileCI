@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+        environment {
+        AZUREML_WORKSPACE = 'bumblebeedemo'
+        AZUREML_RESOURCE_GROUP = 'bumblebeedemo'
+    }
+    stages {
+        stage('Calculate Git Hash'){
+            steps {
+                script {
+                    BUILD_TAG = sh (
+                        script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    IS_TEST_ENABLED = sh(script: 'jq .test.enabled .pipelines/pipeline.json', returnStdout: true).toBoolean()
+                    GIT_BRANCH_NAME = sh(script: 'echo $GIT_BRANCH', returnStdout: true).trim()
+                    env.BUILD_TAG = BUILD_TAG
+                    env.IS_TEST_ENABLED = IS_TEST_ENABLED
+                    env.GIT_BRANCH_NAME = GIT_BRANCH_NAME
+                }
+            }
+        }
+        stage('Custom') {
+            steps {
+
+                sh '''
+                        az --version
+                        az config set extension.use_dynamic_install=yes_without_prompt
+                    '''
+            }
+        }
+        stage('Build'){
+            steps{
+                sh '''
+                        chmod +x -R .pipelines/stages
+                        .pipelines/stages/build.sh
+                    '''
+            }
+        }
+        stage('Test'){
+            steps{
+                sh '''
+                    .pipelines/stages/test.sh
+                '''
+            }
+        }
+        stage('Login to Azure and configure AzureML Rg + Ws'){
+            steps{
+                sh '''
+                    az login --service-principal -u ${app_id} -p ${password} --tenant ${tenant_id}
+                    az configure --defaults workspace="${AZUREML_WORKSPACE:-av-mlops-common-workspace}" group="${AZUREML_RESOURCE_GROUP:-adas-datapipeline-poc}"
+                    az extension add --name ml
+                '''
+            }
+        }
+        stage('Training using development data'){
+            steps{
+                sh '''
+                    stage=dev training_data=azureml:diabetes-dev:1 .pipelines/stages/train_and_push.sh
+                '''
+            }
+        }
+        stage('Training using production data'){
+            input{
+                message "Do you want to proceed for production training?"
+            }
+
+            steps{
+                sh '''
+                    stage=prod training_data=azureml:diabetes-prod:1 .pipelines/stages/train_and_push.sh
+                '''
+            }
+        }
+        stage('Production deployment'){
+            input{
+                message "Do you want to proceed for production deployment?"
+            }
+
+            steps{
+                sh '''
+                endpoint_name=bumblebee-inference-endpoint
+                az ml online-endpoint update --name $endpoint_name -f azureml/endpoint.yml
+                stage=prod
+                registry=$(jq -r .archive.registry .pipelines/pipeline.json)
+                repository=$(jq -r .archive.repository .pipelines/pipeline.json)
+                image="${registry}/${repository}:0.0.${BUILD_TAG}-${stage}"
+                az ml online-deployment update --name bumblebee-deployment --endpoint $endpoint_name -f azureml/deployment.yml --set environment.image=$image
+                '''
+            }
+        }
+        
+     }
+     post {
+        always {
+            cleanWs(cleanWhenNotBuilt: false,
+                    deleteDirs: true,
+                    disableDeferredWipeout: true,
+                    notFailBuild: true,
+                    patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
+                                [pattern: '.propsfile', type: 'EXCLUDE']])
+        }
+    }
+}

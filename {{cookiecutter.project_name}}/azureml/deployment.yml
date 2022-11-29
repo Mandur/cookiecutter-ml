@@ -1,0 +1,17 @@
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: container-deployment-2
+endpoint_name: nora-endpoint
+environment:
+  image: docker.io/nabiakar/localinference2:latest
+  inference_config:
+    liveness_route:
+      path: /api/infer
+      port: 5000
+    readiness_route:
+      path: /api/infer
+      port: 5000
+    scoring_route:
+      path: /api/infer
+      port: 5000
+instance_type: Standard_DS2_v2
+instance_count: 1
