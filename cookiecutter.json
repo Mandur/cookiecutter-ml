@@ -1,6 +1,6 @@
 {
     "project_name": "proj",
-    "local_development": true,
+    "local_dev": false,
     "_copy_without_render": [
         "azureml/*"
     ]
